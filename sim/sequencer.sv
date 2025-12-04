@@ -37,12 +37,10 @@ module sequencer (
                 matrix_b[i] <= '0;
             end
             sequence_valid_o <= '0;
-            $display("[%0t] SEQUENCER: Reset", $time);
         end else begin
             case (state)
                 IDLE: begin
                     if (test_start_i) begin
-                        $display("[%0t] SEQUENCER: Test start, generating matrices", $time);
                         for (int i = 0; i < `MATRIX_SIZE; i++) begin
                             matrix_a[i] <= gen_random_value();
                             matrix_b[i] <= gen_random_value();
@@ -55,27 +53,19 @@ module sequencer (
                     sequence_o <= matrix_a;
                     sequence_valid_o <= 1;
                     state <= WAIT_A;
-                    $display("[%0t] SEQUENCER: Sending matrix A", $time);
                 end
                 WAIT_A: begin
                     sequence_valid_o <= 0;
-                    if (sequence_send_i) begin
-                        state <= SEND_B;
-                        $display("[%0t] SEQUENCER: Matrix A sent", $time);
-                    end
+                    if (sequence_send_i) state <= SEND_B;
                 end
                 SEND_B: begin
                     sequence_o <= matrix_b;
                     sequence_valid_o <= 1;
                     state <= WAIT_B;
-                    $display("[%0t] SEQUENCER: Sending matrix B", $time);
                 end
                 WAIT_B: begin
                     sequence_valid_o <= 0;
-                    if (sequence_send_i) begin
-                        state <= IDLE;
-                        $display("[%0t] SEQUENCER: Matrix B sent, back to IDLE", $time);
-                    end
+                    if (sequence_send_i) state <= IDLE;
                 end
             endcase
         end

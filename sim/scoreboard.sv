@@ -30,7 +30,6 @@ module scoreboard (
         log_file = $fopen("scoreboard_log.txt", "w");
         $fwrite(log_file, "Lab 4: Heterogeneous SoC - Test Results\n");
         $fwrite(log_file, "========================================\n\n");
-        $display("[%0t] SCOREBOARD: Log file opened", $time);
     end
 
     always_ff @(posedge clk_i) begin
@@ -48,26 +47,22 @@ module scoreboard (
                 matrix_a[i] <= 0;
                 matrix_b[i] <= 0;
             end
-            $display("[%0t] SCOREBOARD: Reset", $time);
         end else if (state == WAIT_A) begin
             test_done <= 0;
             if (matrix_vld) begin
                 matrix_a <= matrix_input;
                 state <= WAIT_B;
-                $display("[%0t] SCOREBOARD: Got matrix A", $time);
             end
         end else if (state == WAIT_B) begin
             if (matrix_vld) begin
                 matrix_b <= matrix_input;
                 start_time = $time;
                 state <= WAIT_RESULT;
-                $display("[%0t] SCOREBOARD: Got matrix B, timer started", $time);
             end
         end else if (state == WAIT_RESULT) begin
             if (result_vld) begin
                 end_time = $time;
                 state <= CHECK;
-                $display("[%0t] SCOREBOARD: Got result", $time);
             end
         end else begin
             // CHECK state
