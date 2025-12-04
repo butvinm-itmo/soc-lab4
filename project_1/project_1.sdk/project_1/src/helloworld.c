@@ -1,127 +1,199 @@
 /******************************************************************************
+ * Lab 4: Heterogeneous SoC Architecture
  *
- * Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved.
+ * MicroBlaze software with dual-mode computation:
+ *   - SW Mode (Switch[0] = 0): Software-only matrix computation
+ *   - HW Mode (Switch[0] = 1): Hardware accelerator (HLS mat_compute)
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Algorithm: C = A + B*B for 7x7 uint8 matrices
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * Use of the Software is limited solely to applications:
- * (a) running on a Xilinx device, or
- * (b) that interact with a Xilinx device through a bus or interconnect.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * XILINX  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
- * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- * Except as contained in this notice, the name of the Xilinx shall not be used
- * in advertising or otherwise to promote the sale, use or other dealings in
- * this Software without prior written authorization from Xilinx.
- *
+ * GPIO Protocol (compatible with Lab2 testbench):
+ *   Input:  gpio_switch[15]=1 with data in [7:0], mode in [0]
+ *   Ack:    gpio_led[15] pulse
+ *   Output: gpio_led[14]=1 with data in [7:0] (low then high byte)
  ******************************************************************************/
-
-/*
- * helloworld.c: simple test application
- *
- * This application configures UART 16550 to baud rate 9600.
- * PS7 UART (Zynq) is not initialized by this application, since
- * bootrom/bsp configures it to baud rate 115200
- *
- * ------------------------------------------------
- * | UART TYPE   BAUD RATE                        |
- * ------------------------------------------------
- *   uartns550   9600
- *   uartlite    Configurable only in HW design
- *   ps7_uart    115200 (configured by bootrom/bsp)
- */
 
 #include "xil_io.h"
 #include <stdint.h>
 #include <stdio.h>
-
 #include "platform.h"
 
-#define MAT_SIZE 7
-#define MAT_LED_START 8
-#define OUT_PORT 0x40000000
-#define DELAY 10000000
+/*===========================================================================*/
+/* Hardware Addresses                                                        */
+/*===========================================================================*/
 
-void mat_mul(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE], uint8_t C[MAT_SIZE][MAT_SIZE]) {
-    for (size_t i = 0; i < MAT_SIZE; i++) {
-        for (size_t j = 0; j < MAT_SIZE; j++) {
+#define GPIO_BASE       0x40000000
+#define GPIO_LED_DATA   (GPIO_BASE + 0x0000)  /* Channel 1: LED outputs */
+#define GPIO_SW_DATA    (GPIO_BASE + 0x0008)  /* Channel 2: Switch inputs */
+
+/* HLS mat_compute Accelerator */
+#define HLS_BASE        0x44A00000
+#define HLS_CTRL        (HLS_BASE + 0x00)
+#define HLS_A_BASE      (HLS_BASE + 0x40)
+#define HLS_B_BASE      (HLS_BASE + 0x80)
+#define HLS_C_BASE      (HLS_BASE + 0xC0)
+
+#define AP_START        0x01
+#define AP_DONE         0x02
+#define AP_IDLE         0x04
+
+/*===========================================================================*/
+/* Constants                                                                 */
+/*===========================================================================*/
+
+#define MAT_SIZE        7
+#define MAT_ELEMENTS    49
+#define MODE_SW         0
+#define MODE_HW         1
+
+/*===========================================================================*/
+/* GPIO Communication Protocol                                               */
+/*===========================================================================*/
+
+uint16_t get_value(void) {
+    uint16_t value = Xil_In16(GPIO_SW_DATA);
+
+    /* Wait for gpio_switch[15] = 1 (valid data from testbench) */
+    while ((value & 0x8000) == 0) {
+        value = Xil_In16(GPIO_SW_DATA);
+    }
+
+    /* Extract 8-bit value from lower bits */
+    value = value & 0x00FF;
+
+    /* Send acknowledgment: pulse gpio_led[15] */
+    Xil_Out16(GPIO_LED_DATA, 0x8000);
+    Xil_Out16(GPIO_LED_DATA, 0x0000);
+
+    return value;
+}
+
+void send_value(uint16_t value) {
+    /* Send low byte with gpio_led[14]=1 as strobe */
+    uint16_t low_byte = (value & 0x00FF) | 0x4000;
+    Xil_Out16(GPIO_LED_DATA, low_byte);
+    Xil_Out16(GPIO_LED_DATA, 0x0000);
+
+    /* Send high byte with gpio_led[14]=1 as strobe */
+    uint16_t high_byte = ((value >> 8) & 0x00FF) | 0x4000;
+    Xil_Out16(GPIO_LED_DATA, high_byte);
+    Xil_Out16(GPIO_LED_DATA, 0x0000);
+}
+
+uint32_t get_mode(void) {
+    return Xil_In16(GPIO_SW_DATA) & 0x01;
+}
+
+/*===========================================================================*/
+/* Software Matrix Operations                                                */
+/*===========================================================================*/
+
+void mat_mul(uint16_t A[MAT_SIZE][MAT_SIZE], uint16_t B[MAT_SIZE][MAT_SIZE], uint16_t C[MAT_SIZE][MAT_SIZE]) {
+    for (int i = 0; i < MAT_SIZE; i++) {
+        for (int j = 0; j < MAT_SIZE; j++) {
             C[i][j] = 0;
-            for (size_t k = 0; k < MAT_SIZE; k++) {
+            for (int k = 0; k < MAT_SIZE; k++) {
                 C[i][j] += A[i][k] * B[k][j];
             }
         }
     }
 }
 
-void mat_add(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE], uint8_t C[MAT_SIZE][MAT_SIZE]) {
-    for (size_t i = 0; i < MAT_SIZE; i++) {
-        for (size_t j = 0; j < MAT_SIZE; j++) {
+void mat_add(uint16_t A[MAT_SIZE][MAT_SIZE], uint16_t B[MAT_SIZE][MAT_SIZE], uint16_t C[MAT_SIZE][MAT_SIZE]) {
+    for (int i = 0; i < MAT_SIZE; i++) {
+        for (int j = 0; j < MAT_SIZE; j++) {
             C[i][j] = A[i][j] + B[i][j];
         }
     }
 }
 
+void sw_mat_compute(uint16_t A[MAT_SIZE][MAT_SIZE], uint16_t B[MAT_SIZE][MAT_SIZE], uint16_t C[MAT_SIZE][MAT_SIZE]) {
+    uint16_t temp[MAT_SIZE][MAT_SIZE];
+    mat_mul(B, B, temp);
+    mat_add(A, temp, C);
+}
+
+/*===========================================================================*/
+/* Hardware Accelerator Driver                                               */
+/*===========================================================================*/
+
+void hls_write_matrix(uint32_t base_addr, uint16_t mat[MAT_SIZE][MAT_SIZE]) {
+    uint8_t flat[MAT_ELEMENTS];
+    for (int i = 0; i < MAT_SIZE; i++) {
+        for (int j = 0; j < MAT_SIZE; j++) {
+            flat[i * MAT_SIZE + j] = (uint8_t)(mat[i][j] & 0xFF);
+        }
+    }
+    for (int i = 0; i < 48; i += 4) {
+        uint32_t word = flat[i] | (flat[i+1] << 8) | (flat[i+2] << 16) | (flat[i+3] << 24);
+        Xil_Out32(base_addr + i, word);
+    }
+    Xil_Out32(base_addr + 48, flat[48]);
+}
+
+void hls_read_matrix(uint32_t base_addr, uint16_t mat[MAT_SIZE][MAT_SIZE]) {
+    uint8_t flat[MAT_ELEMENTS];
+    for (int i = 0; i < 48; i += 4) {
+        uint32_t word = Xil_In32(base_addr + i);
+        flat[i]   = word & 0xFF;
+        flat[i+1] = (word >> 8) & 0xFF;
+        flat[i+2] = (word >> 16) & 0xFF;
+        flat[i+3] = (word >> 24) & 0xFF;
+    }
+    flat[48] = Xil_In32(base_addr + 48) & 0xFF;
+    for (int i = 0; i < MAT_SIZE; i++) {
+        for (int j = 0; j < MAT_SIZE; j++) {
+            mat[i][j] = flat[i * MAT_SIZE + j];
+        }
+    }
+}
+
+void hw_mat_compute(uint16_t A[MAT_SIZE][MAT_SIZE], uint16_t B[MAT_SIZE][MAT_SIZE], uint16_t C[MAT_SIZE][MAT_SIZE]) {
+    while (!(Xil_In32(HLS_CTRL) & AP_IDLE));
+    hls_write_matrix(HLS_A_BASE, A);
+    hls_write_matrix(HLS_B_BASE, B);
+    Xil_Out32(HLS_CTRL, AP_START);
+    while (!(Xil_In32(HLS_CTRL) & AP_DONE));
+    hls_read_matrix(HLS_C_BASE, C);
+}
+
+/*===========================================================================*/
+/* Main Application                                                          */
+/*===========================================================================*/
+
 int main() {
     init_platform();
 
-    uint8_t A[MAT_SIZE][MAT_SIZE] = {
-        { 0, 4, 8, 8, 9, 10, 5 },
-        { 8, 1, 2, 9, 9, 8, 7 },
-        { 1, 8, 4, 10, 5, 4, 4 },
-        { 10, 4, 8, 5, 3, 2, 7 },
-        { 0, 4, 7, 4, 0, 1, 9 },
-        { 0, 3, 9, 10, 3, 1, 9 },
-        { 1, 7, 1, 9, 4, 0, 7 },
-    };
-
-    uint8_t B[MAT_SIZE][MAT_SIZE] = {
-        { 69, 4, 8, 8, 9, 10, 5 },
-        { 8, 69, 2, 9, 9, 8, 7 },
-        { 1, 8, 4, 10, 5, 4, 4 },
-        { 10, 4, 8, 5, 3, 2, 7 },
-        { 0, 4, 7, 4, 0, 1, 9 },
-        { 0, 3, 9, 10, 3, 1, 9 },
-        { 1, 7, 1, 9, 4, 0, 69 },
-    };
-
-    uint8_t C[MAT_SIZE][MAT_SIZE]; // A + B*B
-
-    /* Loop forever blinking the LED */
     while (1) {
-        uint16_t leds = 0x0001;
-        Xil_Out16(OUT_PORT, leds);
+        uint16_t A[MAT_SIZE][MAT_SIZE];
+        uint16_t B[MAT_SIZE][MAT_SIZE];
+        uint16_t C[MAT_SIZE][MAT_SIZE];
 
-        mat_mul(B, B, C);
-        mat_add(A, C, C);
+        /* Receive matrix A via GPIO */
+        for (int i = 0; i < MAT_SIZE; i++) {
+            for (int j = 0; j < MAT_SIZE; j++) {
+                A[i][j] = get_value();
+            }
+        }
 
-        leds = 0x0002;
-        Xil_Out16(OUT_PORT, leds);
-        
-        for (size_t delay = 0; delay < DELAY; delay++);
+        /* Receive matrix B via GPIO */
+        for (int i = 0; i < MAT_SIZE; i++) {
+            for (int j = 0; j < MAT_SIZE; j++) {
+                B[i][j] = get_value();
+            }
+        }
 
-        for (size_t i = 0; i < MAT_SIZE; i++) {
-            for (size_t j = 0; j < MAT_SIZE; j++) {
-                leds = C[i][j] << MAT_LED_START;
+        /* Compute C = A + B*B based on mode */
+        if (get_mode() == MODE_SW) {
+            sw_mat_compute(A, B, C);
+        } else {
+            hw_mat_compute(A, B, C);
+        }
 
-                Xil_Out16(OUT_PORT, leds);
-                for (size_t delay = 0; delay < DELAY; delay++);
-
-                Xil_Out16(OUT_PORT, 0x0000);
-                for (size_t delay = 0; delay < DELAY; delay++);
+        /* Send result matrix C via GPIO */
+        for (int i = 0; i < MAT_SIZE; i++) {
+            for (int j = 0; j < MAT_SIZE; j++) {
+                send_value(C[i][j]);
             }
         }
     }
