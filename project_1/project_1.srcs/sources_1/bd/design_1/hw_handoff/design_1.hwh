@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
-<EDKSYSTEM EDWVERSION="1.2" TIMESTAMP="Thu Dec  4 14:05:10 2025" VIVADOVERSION="2019.1">
+<EDKSYSTEM EDWVERSION="1.2" TIMESTAMP="Thu Dec  4 16:21:05 2025" VIVADOVERSION="2019.1">
 
   <SYSTEMINFO ARCH="artix7" DEVICE="7a100t" NAME="design_1" PACKAGE="csg324" SPEEDGRADE="-1"/>
 
@@ -1384,8 +1384,8 @@
             <CONNECTION INSTANCE="axi_gpio_0" PORT="s_axi_aclk"/>
             <CONNECTION INSTANCE="axi_uartlite_0" PORT="s_axi_aclk"/>
             <CONNECTION INSTANCE="rst_clk_wiz_1_100M" PORT="slowest_sync_clk"/>
-            <CONNECTION INSTANCE="mat_compute_0" PORT="ap_clk"/>
             <CONNECTION INSTANCE="microblaze_0_axi_periph" PORT="M02_ACLK"/>
+            <CONNECTION INSTANCE="mat_compute_0" PORT="ap_clk"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" NAME="locked" SIGIS="undef" SIGNAME="clk_wiz_1_locked">
@@ -1396,7 +1396,7 @@
       </PORTS>
       <BUSINTERFACES/>
     </MODULE>
-    <MODULE COREREVISION="2011270313" FULLNAME="/mat_compute_0" HWVERSION="1.0" INSTANCE="mat_compute_0" IPTYPE="PERIPHERAL" IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="mat_compute" VLNV="xilinx.com:hls:mat_compute:1.0">
+    <MODULE COREREVISION="2011270314" FULLNAME="/mat_compute_0" HWVERSION="1.0" INSTANCE="mat_compute_0" IPTYPE="PERIPHERAL" IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="mat_compute" VLNV="xilinx.com:hls:mat_compute:1.0">
       <DOCUMENTS/>
       <ADDRESSBLOCKS>
         <ADDRESSBLOCK ACCESS="read-write" INTERFACE="s_axi_AXILiteS" NAME="Reg" RANGE="65536" USAGE="register">
@@ -1609,8 +1609,8 @@
             </REGISTER>
             <REGISTER NAME="Memory_C">
               <PROPERTY NAME="DESCRIPTION" VALUE="Memory C"/>
-              <PROPERTY NAME="ADDRESS_OFFSET" VALUE="192"/>
-              <PROPERTY NAME="SIZE" VALUE="64"/>
+              <PROPERTY NAME="ADDRESS_OFFSET" VALUE="256"/>
+              <PROPERTY NAME="SIZE" VALUE="128"/>
               <PROPERTY NAME="ACCESS" VALUE="read-write"/>
               <PROPERTY NAME="IS_ENABLED" VALUE="true"/>
               <PROPERTY NAME="RESET_VALUE" VALUE="0"/>
@@ -1619,7 +1619,7 @@
         </ADDRESSBLOCK>
       </ADDRESSBLOCKS>
       <PARAMETERS>
-        <PARAMETER NAME="C_S_AXI_AXILITES_ADDR_WIDTH" VALUE="8"/>
+        <PARAMETER NAME="C_S_AXI_AXILITES_ADDR_WIDTH" VALUE="9"/>
         <PARAMETER NAME="C_S_AXI_AXILITES_DATA_WIDTH" VALUE="32"/>
         <PARAMETER NAME="Component_Name" VALUE="design_1_mat_compute_0_0"/>
         <PARAMETER NAME="clk_period" VALUE="10"/>
@@ -1632,7 +1632,7 @@
         <PARAMETER NAME="C_S_AXI_AXILITES_HIGHADDR" VALUE="0x44A0FFFF"/>
       </PARAMETERS>
       <PORTS>
-        <PORT DIR="I" LEFT="7" NAME="s_axi_AXILiteS_AWADDR" RIGHT="0" SIGIS="undef" SIGNAME="mat_compute_0_s_axi_AXILiteS_AWADDR">
+        <PORT DIR="I" LEFT="8" NAME="s_axi_AXILiteS_AWADDR" RIGHT="0" SIGIS="undef" SIGNAME="mat_compute_0_s_axi_AXILiteS_AWADDR">
           <CONNECTIONS>
             <CONNECTION INSTANCE="microblaze_0_axi_periph" PORT="M02_AXI_awaddr"/>
           </CONNECTIONS>
@@ -1682,7 +1682,7 @@
             <CONNECTION INSTANCE="microblaze_0_axi_periph" PORT="M02_AXI_bready"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="7" NAME="s_axi_AXILiteS_ARADDR" RIGHT="0" SIGIS="undef" SIGNAME="mat_compute_0_s_axi_AXILiteS_ARADDR">
+        <PORT DIR="I" LEFT="8" NAME="s_axi_AXILiteS_ARADDR" RIGHT="0" SIGIS="undef" SIGNAME="mat_compute_0_s_axi_AXILiteS_ARADDR">
           <CONNECTIONS>
             <CONNECTION INSTANCE="microblaze_0_axi_periph" PORT="M02_AXI_araddr"/>
           </CONNECTIONS>
@@ -1731,7 +1731,7 @@
       </PORTS>
       <BUSINTERFACES>
         <BUSINTERFACE BUSNAME="microblaze_0_axi_periph_M02_AXI" DATAWIDTH="32" NAME="s_axi_AXILiteS" TYPE="SLAVE" VLNV="xilinx.com:interface:aximm:1.0">
-          <PARAMETER NAME="ADDR_WIDTH" VALUE="8"/>
+          <PARAMETER NAME="ADDR_WIDTH" VALUE="9"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="32"/>
           <PARAMETER NAME="PROTOCOL" VALUE="AXI4LITE"/>
           <PARAMETER NAME="READ_WRITE_MODE" VALUE="READ_WRITE"/>
@@ -4193,8 +4193,8 @@
             <CONNECTION INSTANCE="microblaze_0_axi_periph" PORT="M01_ARESETN"/>
             <CONNECTION INSTANCE="axi_gpio_0" PORT="s_axi_aresetn"/>
             <CONNECTION INSTANCE="axi_uartlite_0" PORT="s_axi_aresetn"/>
-            <CONNECTION INSTANCE="mat_compute_0" PORT="ap_rst_n"/>
             <CONNECTION INSTANCE="microblaze_0_axi_periph" PORT="M02_ARESETN"/>
+            <CONNECTION INSTANCE="mat_compute_0" PORT="ap_rst_n"/>
           </CONNECTIONS>
         </PORT>
       </PORTS>

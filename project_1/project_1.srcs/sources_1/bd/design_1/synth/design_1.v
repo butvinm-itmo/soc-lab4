@@ -1,7 +1,7 @@
 //Copyright 1986-2019 Xilinx, Inc. All Rights Reserved.
 //--------------------------------------------------------------------------------
 //Tool Version: Vivado v.2019.1 (lin64) Build 2552052 Fri May 24 14:47:09 MDT 2019
-//Date        : Thu Dec  4 14:05:09 2025
+//Date        : Thu Dec  4 16:21:05 2025
 //Host        : butvinm-work running 64-bit Manjaro Linux
 //Command     : generate_target design_1.bd
 //Design      : design_1
@@ -184,10 +184,10 @@ module design_1
   design_1_mat_compute_0_0 mat_compute_0
        (.ap_clk(microblaze_0_Clk),
         .ap_rst_n(rst_clk_wiz_1_100M_peripheral_aresetn),
-        .s_axi_AXILiteS_ARADDR(microblaze_0_axi_periph_M02_AXI_ARADDR[7:0]),
+        .s_axi_AXILiteS_ARADDR(microblaze_0_axi_periph_M02_AXI_ARADDR[8:0]),
         .s_axi_AXILiteS_ARREADY(microblaze_0_axi_periph_M02_AXI_ARREADY),
         .s_axi_AXILiteS_ARVALID(microblaze_0_axi_periph_M02_AXI_ARVALID),
-        .s_axi_AXILiteS_AWADDR(microblaze_0_axi_periph_M02_AXI_AWADDR[7:0]),
+        .s_axi_AXILiteS_AWADDR(microblaze_0_axi_periph_M02_AXI_AWADDR[8:0]),
         .s_axi_AXILiteS_AWREADY(microblaze_0_axi_periph_M02_AXI_AWREADY),
         .s_axi_AXILiteS_AWVALID(microblaze_0_axi_periph_M02_AXI_AWVALID),
         .s_axi_AXILiteS_BREADY(microblaze_0_axi_periph_M02_AXI_BREADY),
