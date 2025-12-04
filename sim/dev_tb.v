@@ -33,8 +33,11 @@ module dev_tb ();
     initial begin
         rst_n = 0;
         clk = 0;
-        usb_uart_rxd = 0;
+        usb_uart_rxd = 1;
+
+        $display("[%0t] TB: Starting simulation, reset asserted", $time);
         #200 rst_n = 1;
+        $display("[%0t] TB: Reset deasserted", $time);
 
         $display("============================================");
         $display("Lab 4: Heterogeneous SoC Testbench");
@@ -43,4 +46,20 @@ module dev_tb ();
     end
 
     always #5 clk = ~clk;
+
+    // Periodic status logging
+    initial begin
+        forever begin
+            #1000000;  // Every 1ms
+            $display("[%0t] TB STATUS: rst_n=%b gpio_switch=%h gpio_led=%h",
+                     $time, rst_n, gpio_switch, gpio_led);
+        end
+    end
+
+    // Timeout watchdog
+    initial begin
+        #500000000;  // 500ms timeout
+        $display("[%0t] TB ERROR: Simulation timeout!", $time);
+        $finish;
+    end
 endmodule

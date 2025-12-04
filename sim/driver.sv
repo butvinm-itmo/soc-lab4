@@ -33,31 +33,44 @@ module driver (
             state <= WAIT_SEQ;
             receive <= 0;
             sequence_send <= 0;
+            gpio_switch <= 0;
+            $display("[%0t] DRIVER: Reset", $time);
         end else begin
             case (state)
                 WAIT_SEQ: begin
                     receive <= 0;
                     temp_idx <= 0;
                     sequence_send <= 0;
+                    gpio_switch <= 0;
                     if (sequence_valid) begin
                         temp_matrix <= sequence_i;
                         state <= SEND_SEQ;
+                        $display("[%0t] DRIVER: Got sequence, moving to SEND_SEQ", $time);
                     end
                 end
                 SEND_SEQ: begin
                     if (temp_idx == `MATRIX_SIZE) begin
                         state <= WAIT_SEQ;
                         sequence_send <= 1;
+                        gpio_switch <= 0;
+                        $display("[%0t] DRIVER: Finished sending all %0d elements", $time, `MATRIX_SIZE);
                     end else begin
                         if (send_vld) begin
+                            // We've sent data, wait for ack
                             if (receive && !receive_vld) begin
+                                // Ack went low, move to next
                                 temp_idx <= temp_idx + 1'b1;
                                 gpio_switch <= 0;
                                 receive <= 0;
-                            end else if (receive_vld) begin
+                                $display("[%0t] DRIVER: Sent element %0d/%0d, value=%h",
+                                         $time, temp_idx + 1, `MATRIX_SIZE, temp_matrix[temp_idx]);
+                            end else if (receive_vld && !receive) begin
+                                // Got ack high
                                 receive <= 1;
+                                $display("[%0t] DRIVER: Got ACK for element %0d", $time, temp_idx);
                             end
                         end else begin
+                            // Send data with bit 15 set
                             gpio_switch <= temp_matrix[temp_idx] | 16'h8000;
                         end
                     end

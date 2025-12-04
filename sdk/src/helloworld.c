@@ -6,6 +6,11 @@
  *   - HW Mode (Switch[0] = 1): Hardware accelerator (HLS mat_compute)
  *
  * Algorithm: C = A + B*B for 7x7 uint8 matrices
+ *
+ * GPIO Protocol (compatible with Lab2 testbench):
+ *   Input:  gpio_switch[15]=1 with data in [7:0], mode in [0]
+ *   Ack:    gpio_led[15] pulse
+ *   Output: gpio_led[14]=1 with data in [7:0] (low then high byte)
  ******************************************************************************/
 
 #include "xil_io.h"
@@ -49,18 +54,57 @@
 
 #define MAT_SIZE        7
 #define MAT_ELEMENTS    49
-#define MAT_LED_START   8
-#define DELAY_COUNT     10000000
 
 /* Mode definitions */
 #define MODE_SW         0
 #define MODE_HW         1
 
 /*===========================================================================*/
-/* Software Matrix Operations (from Lab 1)                                   */
+/* GPIO Communication Protocol (Lab2 compatible)                             */
 /*===========================================================================*/
 
-void mat_mul(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE], uint8_t C[MAT_SIZE][MAT_SIZE]) {
+/* Get a value from GPIO with handshake */
+uint16_t get_value(void) {
+    uint16_t value = Xil_In16(GPIO_SW_DATA);
+
+    /* Wait for gpio_switch[15] = 1 (valid data from testbench) */
+    while ((value & 0x8000) == 0) {
+        value = Xil_In16(GPIO_SW_DATA);
+    }
+
+    /* Extract 8-bit value from lower bits */
+    value = value & 0x00FF;
+
+    /* Send acknowledgment: pulse gpio_led[15] */
+    Xil_Out16(GPIO_LED_DATA, 0x8000);
+    Xil_Out16(GPIO_LED_DATA, 0x0000);
+
+    return value;
+}
+
+/* Send a 16-bit value via GPIO (low byte first, then high byte) */
+void send_value(uint16_t value) {
+    /* Send low byte with gpio_led[14]=1 as strobe */
+    uint16_t low_byte = (value & 0x00FF) | 0x4000;
+    Xil_Out16(GPIO_LED_DATA, low_byte);
+    Xil_Out16(GPIO_LED_DATA, 0x0000);
+
+    /* Send high byte with gpio_led[14]=1 as strobe */
+    uint16_t high_byte = ((value >> 8) & 0x00FF) | 0x4000;
+    Xil_Out16(GPIO_LED_DATA, high_byte);
+    Xil_Out16(GPIO_LED_DATA, 0x0000);
+}
+
+/* Read current mode from switch[0] */
+uint32_t get_mode(void) {
+    return Xil_In16(GPIO_SW_DATA) & 0x01;
+}
+
+/*===========================================================================*/
+/* Software Matrix Operations                                                */
+/*===========================================================================*/
+
+void mat_mul(uint16_t A[MAT_SIZE][MAT_SIZE], uint16_t B[MAT_SIZE][MAT_SIZE], uint16_t C[MAT_SIZE][MAT_SIZE]) {
     for (size_t i = 0; i < MAT_SIZE; i++) {
         for (size_t j = 0; j < MAT_SIZE; j++) {
             C[i][j] = 0;
@@ -71,7 +115,7 @@ void mat_mul(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE], uint8
     }
 }
 
-void mat_add(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE], uint8_t C[MAT_SIZE][MAT_SIZE]) {
+void mat_add(uint16_t A[MAT_SIZE][MAT_SIZE], uint16_t B[MAT_SIZE][MAT_SIZE], uint16_t C[MAT_SIZE][MAT_SIZE]) {
     for (size_t i = 0; i < MAT_SIZE; i++) {
         for (size_t j = 0; j < MAT_SIZE; j++) {
             C[i][j] = A[i][j] + B[i][j];
@@ -80,8 +124,8 @@ void mat_add(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE], uint8
 }
 
 /* SW mode: C = A + B*B */
-void sw_mat_compute(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE], uint8_t C[MAT_SIZE][MAT_SIZE]) {
-    uint8_t temp[MAT_SIZE][MAT_SIZE];
+void sw_mat_compute(uint16_t A[MAT_SIZE][MAT_SIZE], uint16_t B[MAT_SIZE][MAT_SIZE], uint16_t C[MAT_SIZE][MAT_SIZE]) {
+    uint16_t temp[MAT_SIZE][MAT_SIZE];
     mat_mul(B, B, temp);   /* temp = B * B */
     mat_add(A, temp, C);   /* C = A + temp */
 }
@@ -91,8 +135,15 @@ void sw_mat_compute(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE]
 /*===========================================================================*/
 
 /* Write a 7x7 matrix to HLS IP (packed 4 bytes per 32-bit word) */
-void hls_write_matrix(uint32_t base_addr, uint8_t mat[MAT_SIZE][MAT_SIZE]) {
-    uint8_t *flat = (uint8_t *)mat;
+void hls_write_matrix(uint32_t base_addr, uint16_t mat[MAT_SIZE][MAT_SIZE]) {
+    uint8_t flat[MAT_ELEMENTS];
+
+    /* Convert uint16 matrix to uint8 (truncate to 8 bits) */
+    for (int i = 0; i < MAT_SIZE; i++) {
+        for (int j = 0; j < MAT_SIZE; j++) {
+            flat[i * MAT_SIZE + j] = (uint8_t)(mat[i][j] & 0xFF);
+        }
+    }
 
     /* Write 12 full words (48 bytes) */
     for (int i = 0; i < 48; i += 4) {
@@ -109,8 +160,8 @@ void hls_write_matrix(uint32_t base_addr, uint8_t mat[MAT_SIZE][MAT_SIZE]) {
 }
 
 /* Read a 7x7 matrix from HLS IP */
-void hls_read_matrix(uint32_t base_addr, uint8_t mat[MAT_SIZE][MAT_SIZE]) {
-    uint8_t *flat = (uint8_t *)mat;
+void hls_read_matrix(uint32_t base_addr, uint16_t mat[MAT_SIZE][MAT_SIZE]) {
+    uint8_t flat[MAT_ELEMENTS];
 
     /* Read 12 full words (48 bytes) */
     for (int i = 0; i < 48; i += 4) {
@@ -124,6 +175,13 @@ void hls_read_matrix(uint32_t base_addr, uint8_t mat[MAT_SIZE][MAT_SIZE]) {
     /* Read last element */
     uint32_t last_word = Xil_In32(base_addr + 48);
     flat[48] = last_word & 0xFF;
+
+    /* Convert to uint16 matrix */
+    for (int i = 0; i < MAT_SIZE; i++) {
+        for (int j = 0; j < MAT_SIZE; j++) {
+            mat[i][j] = flat[i * MAT_SIZE + j];
+        }
+    }
 }
 
 /* Start HLS accelerator */
@@ -142,7 +200,7 @@ int hls_is_idle(void) {
 }
 
 /* HW mode: C = A + B*B using HLS accelerator */
-void hw_mat_compute(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE], uint8_t C[MAT_SIZE][MAT_SIZE]) {
+void hw_mat_compute(uint16_t A[MAT_SIZE][MAT_SIZE], uint16_t B[MAT_SIZE][MAT_SIZE], uint16_t C[MAT_SIZE][MAT_SIZE]) {
     /* Wait for accelerator to be idle */
     while (!hls_is_idle());
 
@@ -161,108 +219,46 @@ void hw_mat_compute(uint8_t A[MAT_SIZE][MAT_SIZE], uint8_t B[MAT_SIZE][MAT_SIZE]
 }
 
 /*===========================================================================*/
-/* Mode Selection                                                            */
-/*===========================================================================*/
-
-/* Read mode from DIP switch[0]: 0=SW, 1=HW */
-uint32_t get_mode(void) {
-    return Xil_In32(GPIO_SW_DATA) & 0x01;
-}
-
-/*===========================================================================*/
-/* Utility Functions                                                         */
-/*===========================================================================*/
-
-void delay(void) {
-    for (volatile size_t i = 0; i < DELAY_COUNT; i++);
-}
-
-/*===========================================================================*/
 /* Main Application                                                          */
 /*===========================================================================*/
 
 int main() {
     init_platform();
 
-    /* Test matrices (same as Lab 1) */
-    uint8_t A[MAT_SIZE][MAT_SIZE] = {
-        { 0, 4, 8, 8, 9, 10, 5 },
-        { 8, 1, 2, 9, 9, 8, 7 },
-        { 1, 8, 4, 10, 5, 4, 4 },
-        { 10, 4, 8, 5, 3, 2, 7 },
-        { 0, 4, 7, 4, 0, 1, 9 },
-        { 0, 3, 9, 10, 3, 1, 9 },
-        { 1, 7, 1, 9, 4, 0, 7 },
-    };
-
-    uint8_t B[MAT_SIZE][MAT_SIZE] = {
-        { 69, 4, 8, 8, 9, 10, 5 },
-        { 8, 69, 2, 9, 9, 8, 7 },
-        { 1, 8, 4, 10, 5, 4, 4 },
-        { 10, 4, 8, 5, 3, 2, 7 },
-        { 0, 4, 7, 4, 0, 1, 9 },
-        { 0, 3, 9, 10, 3, 1, 9 },
-        { 1, 7, 1, 9, 4, 0, 69 },
-    };
-
-    uint8_t C[MAT_SIZE][MAT_SIZE]; /* Result: C = A + B*B */
-
     xil_printf("Lab 4: Heterogeneous SoC Architecture\r\n");
-    xil_printf("Switch[0]: 0=SW Mode, 1=HW Mode\r\n");
-    xil_printf("==========================================\r\n");
+    xil_printf("GPIO Protocol Mode - Waiting for testbench...\r\n");
 
-    uint32_t last_mode = 0xFF; /* Invalid initial value */
-
-    /* Main loop - continuously compute and display results */
     while (1) {
-        uint32_t mode = get_mode();
+        uint16_t A[MAT_SIZE][MAT_SIZE];
+        uint16_t B[MAT_SIZE][MAT_SIZE];
+        uint16_t C[MAT_SIZE][MAT_SIZE];
 
-        /* Report mode change */
-        if (mode != last_mode) {
-            if (mode == MODE_SW) {
-                xil_printf("Mode: SOFTWARE (MicroBlaze)\r\n");
-            } else {
-                xil_printf("Mode: HARDWARE (HLS Accelerator)\r\n");
+        /* Receive matrix A via GPIO */
+        for (size_t i = 0; i < MAT_SIZE; i++) {
+            for (size_t j = 0; j < MAT_SIZE; j++) {
+                A[i][j] = get_value();
             }
-            last_mode = mode;
         }
 
-        /* Show mode on LED[0] */
-        uint16_t leds = mode;
-        Xil_Out16(GPIO_LED_DATA, leds);
+        /* Receive matrix B via GPIO */
+        for (size_t i = 0; i < MAT_SIZE; i++) {
+            for (size_t j = 0; j < MAT_SIZE; j++) {
+                B[i][j] = get_value();
+            }
+        }
 
-        /* Compute C = A + B*B */
+        /* Check mode and compute C = A + B*B */
+        uint32_t mode = get_mode();
         if (mode == MODE_SW) {
             sw_mat_compute(A, B, C);
         } else {
             hw_mat_compute(A, B, C);
         }
 
-        /* Show computation complete on LED[1] */
-        leds = mode | 0x0002;
-        Xil_Out16(GPIO_LED_DATA, leds);
-
-        delay();
-
-        /* Display result matrix on LEDs (cycle through elements) */
+        /* Send result matrix C via GPIO */
         for (size_t i = 0; i < MAT_SIZE; i++) {
             for (size_t j = 0; j < MAT_SIZE; j++) {
-                /* LED[15:8] = matrix value, LED[0] = mode */
-                leds = (C[i][j] << MAT_LED_START) | mode;
-                Xil_Out16(GPIO_LED_DATA, leds);
-                delay();
-
-                /* Brief off period */
-                Xil_Out16(GPIO_LED_DATA, mode);
-                delay();
-
-                /* Check for mode change during display */
-                if (get_mode() != mode) {
-                    break; /* Exit to update mode immediately */
-                }
-            }
-            if (get_mode() != mode) {
-                break;
+                send_value(C[i][j]);
             }
         }
     }
