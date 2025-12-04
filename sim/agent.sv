@@ -63,8 +63,8 @@ module agent (
         .test_done(test_done)
     );
 
-    // Combine driver GPIO with mode bit
-    assign gpio_switch = {driver_gpio_switch[15:1], current_mode};
+    // Combine driver GPIO with mode bit (mode in bit 8, data in bits 7:0)
+    assign gpio_switch = {driver_gpio_switch[15:9], current_mode, driver_gpio_switch[7:0]};
 
     // Test orchestration with mode switching
     always_ff @(posedge clk_i) begin

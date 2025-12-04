@@ -81,7 +81,7 @@ void send_value(uint16_t value) {
 }
 
 uint32_t get_mode(void) {
-    return Xil_In16(GPIO_SW_DATA) & 0x01;
+    return (Xil_In16(GPIO_SW_DATA) >> 8) & 0x01;
 }
 
 /*===========================================================================*/
