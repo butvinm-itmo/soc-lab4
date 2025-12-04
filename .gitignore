@@ -16,6 +16,7 @@
 **/ip/**/*_stub.v
 **/ip/**/*_stub.vhdl
 **/ipshared/
+**/ip/*/*.xml
 
 # SDK/Vitis build artifacts
 **/*.sdk/.metadata/
