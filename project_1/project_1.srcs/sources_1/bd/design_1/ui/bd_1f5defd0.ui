@@ -1,0 +1,40 @@
+{
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.0.19  2019-03-26 bk=1.5019 VDI=41 GEI=35 GUI=JA:9.0 non-TLS
+#  -string -flagsOSRD
+preplace port usb_uart -pg 1 -lvl 5 -x 1490 -y -70 -defaultsOSRD
+preplace port led_16bits -pg 1 -lvl 5 -x 1490 -y -260 -defaultsOSRD
+preplace port reset -pg 1 -lvl 0 -x -10 -y -380 -defaultsOSRD
+preplace port sys_clock -pg 1 -lvl 0 -x -10 -y -480 -defaultsOSRD
+preplace inst microblaze_0 -pg 1 -lvl 2 -x 650 -y -140 -defaultsOSRD
+preplace inst axi_uartlite_0 -pg 1 -lvl 1 -x 210 -y -120 -defaultsOSRD
+preplace inst axi_gpio_0 -pg 1 -lvl 1 -x 210 -y -260 -defaultsOSRD
+preplace inst microblaze_0_local_memory -pg 1 -lvl 3 -x 1040 -y -150 -defaultsOSRD
+preplace inst clk_wiz_1 -pg 1 -lvl 1 -x 210 -y -490 -defaultsOSRD
+preplace inst rst_clk_wiz_1_100M -pg 1 -lvl 2 -x 650 -y -520 -defaultsOSRD
+preplace inst microblaze_0_axi_periph -pg 1 -lvl 4 -x 1310 -y -480 -defaultsOSRD
+preplace inst reset_inv_0 -pg 1 -lvl 1 -x 210 -y -380 -defaultsOSRD
+preplace netloc microblaze_0_Clk 1 0 4 30 -600 390 -350 940 -350 1150
+preplace netloc clk_wiz_1_locked 1 1 1 N -480
+preplace netloc rst_clk_wiz_1_100M_mb_reset 1 1 2 410 -360 890
+preplace netloc rst_clk_wiz_1_100M_bus_struct_reset 1 2 1 920 -540n
+preplace netloc rst_clk_wiz_1_100M_peripheral_aresetn 1 0 4 40 -570 380J -420 940J -360 1160
+preplace netloc reset_1 1 0 2 10J -580 410
+preplace netloc reset_inv_0_Res 1 0 2 50 -590 360J
+preplace netloc sys_clock_1 1 0 1 N -480
+preplace netloc microblaze_0_dlmb_1 1 2 1 910 -180n
+preplace netloc microblaze_0_ilmb_1 1 2 1 930 -160n
+preplace netloc microblaze_0_M_AXI_DP 1 2 2 900J -370 1140
+preplace netloc microblaze_0_axi_periph_M00_AXI 1 0 5 20 -620 NJ -620 NJ -620 NJ -620 1460
+preplace netloc axi_uartlite_0_UART 1 1 4 400J -220 890J -70 NJ -70 NJ
+preplace netloc microblaze_0_axi_periph_M01_AXI 1 0 5 60 -560 370J -340 NJ -340 NJ -340 1460
+preplace netloc axi_gpio_0_GPIO 1 1 4 NJ -260 NJ -260 NJ -260 NJ
+levelinfo -pg 1 -10 210 650 1040 1310 1490
+pagesize -pg 1 -db -bbox -sgen -130 -630 1610 180
+"
+}
+{
+   "da_axi4_cnt":"2",
+   "da_board_cnt":"6",
+   "da_mb_cnt":"1"
+}

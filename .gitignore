@@ -1,0 +1,59 @@
+*.o
+*.log
+
+# Vivado/Xilinx build artifacts
+**/*.cache/
+**/*.runs/
+**/*.sim/
+**/*.hw/
+**/*.ip_user_files/
+
+# Generated IP files (keep only .xci and .xml)
+**/ip/**/sim/
+**/ip/**/synth/
+**/ip/**/*_sim_netlist.v
+**/ip/**/*_sim_netlist.vhdl
+**/ip/**/*_stub.v
+**/ip/**/*_stub.vhdl
+**/ipshared/
+
+# SDK/Vitis build artifacts
+**/*.sdk/.metadata/
+**/*.sdk/RemoteSystemsTempFiles/
+**/*.sdk/webtalk/
+**/*.sdk/*/Debug/
+**/*.sdk/*/Release/
+**/*.sdk/*_bsp/
+**/*.sdk/*_hw_platform_*/
+*.hdf
+*.elf
+*.elf.size
+*.d
+
+# Vivado temporary files
+*.jou
+*.str
+*.debug
+*.wdb
+*.wcfg
+*.mem
+*.pb
+*.xpe
+*.dcp
+
+# Build outputs
+*.bit
+*.ltx
+*.bin
+*.mmi
+
+# Xilinx specific
+.Xil/
+fsbl/
+psu_init*
+
+# Scoreboard output
+scoreboard_log.txt
+
+# IDE
+.clangd
