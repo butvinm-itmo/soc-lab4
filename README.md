@@ -402,7 +402,18 @@ $$\text{Speedup} = \frac{T_{SW}}{T_{HW}} = \frac{826755\ ns}{334900\ ns} \approx
 
 <div style="page-break-after: always;"></div>
 
-## Исходный код программы MicroBlaze (helloworld.c)
+## Программное обеспечение MicroBlaze
+
+1. **helloworld.c (Testbench версия)**
+   - Используется при симуляции в Vivado
+   - Получает матрицы A и B от тестбенча через GPIO handshake
+   - Отправляет результат обратно тестбенчу для автоматической верификации
+
+2. **helloworld_fpga.c (FPGA версия)**
+   - Используется для демонстрации на реальной плате Nexys4 DDR
+   - Содержит предопределённые тестовые матрицы
+
+### Исходный код (helloworld.c)
 
 ```c
 #include "xil_io.h"
